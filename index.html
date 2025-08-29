@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Music Transcriber</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        /* Video Background Styling */
+        #video-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            z-index: -2;
+        }
+
+        .video-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6); /* Dark overlay */
+            z-index: -1;
+        }
+
+        .neon-text {
+            color: #fff;
+            text-shadow:
+                0 0 5px #fff,
+                0 0 10px #f0f,
+                0 0 20px #f0f;
+        }
+        
+        @keyframes rotateGradient {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .animated-gradient-border {
+            position: relative;
+            border-radius: 1rem;
+            padding: 2px;
+            overflow: hidden;
+        }
+
+        .animated-gradient-border::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: conic-gradient(
+                from 0deg,
+                #8a2be2, /* Purple */
+                #f0f,   /* Pink */
+                #8a2be2  /* Purple */
+            );
+            animation: rotateGradient 8s linear infinite;
+            z-index: -1;
+        }
+        
+        .inner-content {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: calc(1rem - 2px);
+            padding: 2rem;
+            height: 100%;
+            width: 100%;
+        }
+
+
+        .drop-zone {
+            border: 2px dashed #f0f;
+            transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.3);
+        }
+        .drop-zone--over {
+            background-color: rgba(255, 0, 255, 0.1);
+            border-color: #ff00ff;
+        }
+
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen">
+
+    <!-- Video Background -->
+    <video autoplay muted loop id="video-background">
+        <source src="assets/videos/bgvideo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="video-overlay"></div>
+
+    <div class="w-full max-w-lg px-4 z-10">
+        <div class="animated-gradient-border">
+            <div class="inner-content">
+                <div class="text-center">
+                    <h1 class="text-4xl font-bold neon-text mb-2">Music Transcriber</h1>
+                    <p class="text-gray-300 mb-8">Upload your audio file and let the AI do the rest.</p>
+                </div>
+
+                <div id="upload-section">
+                    <!-- Instrument Selection Dropdown -->
+                    <div class="mb-6">
+                        <label for="instrument-select" class="block text-sm font-medium text-gray-200 mb-2">Select Instrument:</label>
+                        <select id="instrument-select" name="instrument" class="block w-full p-3 border border-pink-400 rounded-lg bg-gray-900 text-white focus:ring-pink-500 focus:border-pink-500">
+                            <option value="piano">Piano</option>
+                            <option value="guitar" selected>Guitar</option>
+                            <option value="vocals">Vocals</option>
+                            <option value="drums">Drums</option>
+                            <option value="bass">Bass</option>
+                        </select>
+                    </div>
+
+                    <!-- Output Format Checkboxes -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-200 mb-2">Select Output Formats:</label>
+                        <div id="output-formats" class="flex items-center space-x-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="output_format" value="pdf" checked class="h-4 w-4 rounded border-gray-500 bg-gray-800 text-pink-500 focus:ring-pink-600">
+                                <span class="ml-2 text-gray-300">PDF</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="output_format" value="midi" class="h-4 w-4 rounded border-gray-500 bg-gray-800 text-pink-500 focus:ring-pink-600">
+                                <span class="ml-2 text-gray-300">MIDI</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="output_format" value="xml" class="h-4 w-4 rounded border-gray-500 bg-gray-800 text-pink-500 focus:ring-pink-600">
+                                <span class="ml-2 text-gray-300">MusicXML</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Centered Drag and Drop Zone -->
+                    <div class="drop-zone flex flex-col items-center justify-center p-6" id="dropZone">
+                        <span class="drop-zone__prompt flex flex-col items-center justify-center text-center">
+                            <svg class="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                            <p class="text-lg font-semibold">Drag & drop your audio file here</p>
+                            <p class="text-sm text-gray-500">or click to select a file</p>
+                        </span>
+                        <input type="file" name="audioFile" id="audioFile" class="drop-zone__input" accept=".wav,.mp3">
+                    </div>
+                    
+                    <div id="file-info" class="mt-6 text-center text-sm text-gray-400 hidden">
+                        <p><strong>File:</strong> <span id="file-name"></span></p>
+                        <button id="transcribe-btn" class="mt-4 w-full bg-pink-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition-colors duration-200">
+                            Transcribe
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="processing-section" class="mt-6 text-center hidden">
+                    <svg class="animate-spin h-8 w-8 text-pink-500 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p id="status-text" class="mt-2 text-gray-300">Submitting your file...</p>
+                </div>
+
+                <div id="result-section" class="mt-6 hidden">
+                    <!-- Results will be displayed here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const uploadSection = document.getElementById('upload-section');
+        const dropZone = document.getElementById('dropZone');
+        const audioFileInput = document.getElementById('audioFile');
+        const fileInfo = document.getElementById('file-info');
+        const fileNameSpan = document.getElementById('file-name');
+        const transcribeBtn = document.getElementById('transcribe-btn');
+        const processingSection = document.getElementById('processing-section');
+        const statusText = document.getElementById('status-text');
+        const resultSection = document.getElementById('result-section');
+        const instrumentSelect = document.getElementById('instrument-select');
+        const outputFormatsContainer = document.getElementById('output-formats');
+
+        let statusInterval;
+
+        // --- Drag and Drop Event Listeners ---
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drop-zone--over');
+        });
+
+        ['dragleave', 'dragend'].forEach(type => {
+            dropZone.addEventListener(type, () => {
+                dropZone.classList.remove('drop-zone--over');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (e.dataTransfer.files.length) {
+                audioFileInput.files = e.dataTransfer.files;
+                updateFileInfo();
+            }
+            dropZone.classList.remove('drop-zone--over');
+        });
+        
+        // --- Click to Select File ---
+        dropZone.addEventListener('click', () => audioFileInput.click());
+        audioFileInput.addEventListener('change', () => updateFileInfo());
+
+        function updateFileInfo() {
+            const file = audioFileInput.files[0];
+            if (file) {
+                fileNameSpan.textContent = file.name;
+                fileInfo.classList.remove('hidden');
+                dropZone.style.display = 'none';
+            }
+        }
+        
+        // --- Step 1: Create Transcription Job ---
+        transcribeBtn.addEventListener('click', async () => {
+            const file = audioFileInput.files[0];
+            const selectedInstrument = instrumentSelect.value;
+            const selectedFormats = Array.from(outputFormatsContainer.querySelectorAll('input:checked')).map(cb => cb.value);
+
+            if (!file) {
+                displayError("Please select a file first.");
+                return;
+            }
+            if (selectedFormats.length === 0) {
+                displayError("Please select at least one output format.");
+                return;
+            }
+            
+            uploadSection.classList.add('hidden');
+            processingSection.classList.remove('hidden');
+            resultSection.classList.add('hidden');
+            statusText.textContent = 'Uploading and creating job...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('instrument', selectedInstrument);
+            selectedFormats.forEach(format => {
+                formData.append('outputs', format);
+            });
+
+            try {
+                const response = await fetch('http://localhost:3000/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.details?.message || data.error);
+                }
+                
+                checkStatus(data.job_id, selectedFormats);
+
+            } catch (error) {
+                console.error('Error creating job:', error);
+                displayError(error.message);
+            }
+        });
+
+        // --- Step 2: Poll for Job Status ---
+        function checkStatus(jobId, formats) {
+            statusText.textContent = `Processing... (Job ID: ${jobId})`;
+            
+            statusInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`http://localhost:3000/status/${jobId}`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.details?.message || data.error);
+                    }
+                    
+                    statusText.textContent = `Status: ${data.status}...`;
+
+                    if (data.status === 'COMPLETED') {
+                        clearInterval(statusInterval);
+                        displaySuccess(jobId, formats);
+                    } else if (data.status === 'FAILED') {
+                        clearInterval(statusInterval);
+                        displayError('The transcription job failed.');
+                    }
+                } catch (error) {
+                    clearInterval(statusInterval);
+                    console.error('Error checking status:', error);
+                    displayError(error.message);
+                }
+            }, 3000);
+        }
+
+        // --- Step 3: Display Success and Download Links ---
+        function displaySuccess(jobId, formats) {
+            processingSection.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+
+            let downloadLinksHTML = formats.map(format => {
+                const formatName = format.toUpperCase();
+                return `<a href="http://localhost:3000/result/${jobId}/${format}" 
+                           class="mt-4 w-full block text-center bg-pink-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors duration-200"
+                           download>
+                           Download ${formatName}
+                        </a>`;
+            }).join('');
+
+            resultSection.innerHTML = `
+                <h2 class="text-xl font-semibold text-green-400 text-center">Transcription Complete!</h2>
+                <p class="text-center text-gray-300 mt-2">Your files are ready for download.</p>
+                <div class="mt-4 space-y-2">${downloadLinksHTML}</div>
+                <button onclick="resetUI()" class="mt-6 w-full bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-600">
+                    Transcribe another file
+                </button>
+            `;
+        }
+
+        function displayError(errorMessage) {
+            processingSection.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+            resultSection.innerHTML = `
+                <h2 class="text-xl font-semibold text-red-500 text-center">An Error Occurred</h2>
+                <p class="text-center text-gray-300 mt-2">${errorMessage || 'Unknown error'}</p>
+                <button onclick="resetUI()" class="mt-4 w-full bg-gray-700 text-white font-semibold py-3 px-4 rounded-lg hover:bg-gray-600">
+                    Try Again
+                </button>
+            `;
+        }
+
+        function resetUI() {
+            clearInterval(statusInterval);
+            audioFileInput.value = '';
+            fileInfo.classList.add('hidden');
+            dropZone.style.display = 'flex';
+            resultSection.classList.add('hidden');
+            uploadSection.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
