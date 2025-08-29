@@ -1,3 +1,5 @@
+require('dotenv').config(); // This line loads the .env file
+
 const express = require('express');
 const cors = require('cors');
 const formidable = require('formidable');
@@ -8,7 +10,8 @@ const FormData = require('form-data');
 const app = express();
 app.use(cors());
 
-const PORT = 3000;
+// Use the PORT environment variable provided by Render, or 3000 for local development
+const PORT = process.env.PORT || 3000;
 const KLANGIO_API_BASE_URL = 'https://api.klang.io';
 
 // --- Endpoint 1: Create a new transcription job ---
@@ -20,9 +23,10 @@ app.post('/transcribe', (req, res) => {
             console.error('Error parsing the form:', err);
             return res.status(500).json({ error: 'Error processing file upload.' });
         }
-
-        const apiKey = "0xkl-586c8d8b01c53d1ca4e58e9619afbd83"; // IMPORTANT: Replace with your actual API key
-        if (apiKey === "YOUR_API_KEY_HERE") {
+        
+        // Read the API key from environment variables
+        const apiKey = process.env.KLANGIO_API_KEY; 
+        if (!apiKey) {
             console.error("API key is not set.");
             return res.status(500).json({ error: "API key is not configured on the server." });
         }
@@ -31,8 +35,6 @@ app.post('/transcribe', (req, res) => {
             const file = Array.isArray(files.file) ? files.file[0] : files.file;
             const instrument = Array.isArray(fields.instrument) ? fields.instrument[0] : fields.instrument;
             const rawOutputs = Array.isArray(fields.outputs) ? fields.outputs : [fields.outputs];
-
-            // Translate 'xml' from the frontend to 'mxml' for the API
             const outputs = rawOutputs.map(output => output === 'xml' ? 'mxml' : output);
 
             if (!file) return res.status(400).json({ error: 'No file was uploaded.' });
@@ -68,7 +70,7 @@ app.post('/transcribe', (req, res) => {
 // --- Endpoint 2: Check the status of a job ---
 app.get('/status/:jobId', async (req, res) => {
     const { jobId } = req.params;
-    const apiKey = "0xkl-586c8d8b01c53d1ca4e58e9619afbd83"; // IMPORTANT: Replace with your actual API key
+    const apiKey = process.env.KLANGIO_API_KEY;
 
     try {
         const statusResponse = await axios.get(`${KLANGIO_API_BASE_URL}/job/${jobId}/status`, {
@@ -87,7 +89,7 @@ app.get('/status/:jobId', async (req, res) => {
 // --- Endpoint 3: Get the final result file ---
 app.get('/result/:jobId/:format', async (req, res) => {
     const { jobId, format } = req.params;
-    const apiKey = "0xkl-586c8d8b01c53d1ca4e58e9619afbd83"; // IMPORTANT: Replace with your actual API key
+    const apiKey = process.env.KLANGIO_API_KEY;
 
     const formatMap = {
         pdf: { ext: 'pdf', contentType: 'application/pdf', endpoint: 'pdf' },
@@ -112,26 +114,28 @@ app.get('/result/:jobId/:format', async (req, res) => {
         resultResponse.data.pipe(res);
 
     } catch (error) {
-        // FIX: Improved error handling to prevent server crashes from circular JSON errors.
         console.error(`Error fetching result for format ${format}:`, error.message);
         
         if (error.response) {
-            // When the responseType is a stream, the error data is also a stream.
-            // We can't just stringify it. Instead, we send a clean error message.
             res.status(error.response.status).json({
                 error: `API returned status ${error.response.status} for format '${format}'`,
-                details: `Could not download the requested file. The API endpoint may not exist or the file may not be ready.`
+                details: `Could not download the requested file.`
             });
         } else {
             res.status(500).json({
                 error: `Failed to fetch transcription result for format: ${format}`,
-                details: 'An unknown error occurred while communicating with the API.'
+                details: 'An unknown error occurred.'
             });
         }
     }
 });
 
+// Serve the index.html file for the root URL
+app.use(express.static(__dirname));
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
 
 app.listen(PORT, () => {
-    console.log(`Server is running on http://localhost:${PORT}`);
+    console.log(`Server is running on port ${PORT}`);
 });
