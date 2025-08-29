@@ -253,7 +253,8 @@
             });
 
             try {
-                const response = await fetch('http://localhost:3000/transcribe', {
+                // FIX: Use a relative URL for the fetch request
+                const response = await fetch('/transcribe', {
                     method: 'POST',
                     body: formData
                 });
@@ -277,7 +278,8 @@
             
             statusInterval = setInterval(async () => {
                 try {
-                    const response = await fetch(`http://localhost:3000/status/${jobId}`);
+                    // FIX: Use a relative URL for the fetch request
+                    const response = await fetch(`/status/${jobId}`);
                     const data = await response.json();
 
                     if (!response.ok) {
@@ -308,7 +310,8 @@
 
             let downloadLinksHTML = formats.map(format => {
                 const formatName = format.toUpperCase();
-                return `<a href="http://localhost:3000/result/${jobId}/${format}" 
+                // FIX: Use a relative URL for the download links
+                return `<a href="/result/${jobId}/${format}" 
                            class="mt-4 w-full block text-center bg-pink-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-pink-700 transition-colors duration-200"
                            download>
                            Download ${formatName}
